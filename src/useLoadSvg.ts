@@ -138,7 +138,7 @@ export const FONT_FAMILY = {
   Virgil: 1,
   Helvetica: 2,
   Cascadia: 3,
-  // leave 4 unused as it was historically used for Assistant (which we don't use anymore) or custom font (Obsidian)
+  ChineseFont: 4, // 添加这一行
   Excalifont: 5,
   Nunito: 6,
   "Lilita One": 7,
@@ -215,6 +215,10 @@ function convertFontFamily(
         "font-family",
         `Liberation Sans, ${DEFAULT_FONT}`
       );
+      break;
+
+    case FONT_FAMILY.ChineseFont:
+      textElement.setAttribute("font-family", `ChineseFont, ${DEFAULT_FONT}`);
       break;
 
     default:

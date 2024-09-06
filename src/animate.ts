@@ -314,6 +314,9 @@ const animateText = (
     durationMs,
     options
   );
+
+  // 添加此代码以确保正确应用新字体
+  ele.setAttribute("font-family", "ChineseFont, sans-serif");
 };
 
 const animateFromToPath = (
@@ -484,6 +487,7 @@ const patchSvgText = (
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
   childNodes.forEach((child) => {
+    child.setAttribute("font-family", "ChineseFont, sans-serif");
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
   });
@@ -700,6 +704,9 @@ export const animateSvg = (
         current += dur;
         finished.set(ele, true);
       }
+    }
+    if (element.type === "text") {
+      ele.setAttribute("font-family", "ChineseFont, sans-serif");
     }
   });
   finishedMs = current + 1000; // 1 sec margin
