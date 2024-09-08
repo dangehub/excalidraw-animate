@@ -65,25 +65,26 @@ export const useLoadSvg = () => {
       };
       const svgList = await Promise.all(
         dataList.map(async (data) => {
-          const elements = getNonDeletedElements(data.elements);
-          const svg = await exportToSvg({
-            elements,
-            files: data.files,
-            appState: data.appState,
-            exportPadding: 30,
-          });
+          try {
+            const elements = getNonDeletedElements(data.elements);
+            const svg = await exportToSvg({
+              elements,
+              files: data.files,
+              appState: data.appState,
+              exportPadding: 30,
+            });
 
-          // This is a patch up function to apply new fonts that are not part of Excalidraw package
-          // Remove this function once Excalidraw package is updated (v0.17.6 as of now)
-          applyNewFontsToSvg(svg, elements);
-          embedFontInSvg(svg, "public/chinese.woff2", "ChineseFont");
+            applyNewFontsToSvg(svg, elements);
+            const fontUrl = new URL('/chinese.woff2', window.location.origin).href;
+            await embedFontInSvg(svg, fontUrl, "ChineseFont");
 
-          const result = animateSvg(svg, elements, options);
-          console.log(svg);
-          if (inSequence) {
-            options.startMs = result.finishedMs;
+            const result = animateSvg(svg, elements, options);
+            console.log("SVG processed successfully");
+            return { svg, finishedMs: result.finishedMs };
+          } catch (error) {
+            console.error("Error processing SVG:", error);
+            throw error;
           }
-          return { svg, finishedMs: result.finishedMs };
         })
       );
       setLoadedSvgList(svgList);
@@ -178,7 +179,8 @@ function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
   });
 
   // 确保ChineseFont被正确嵌入
-  embedFontInSvg(svg, "public/chinese.woff2", "ChineseFont");
+  const fontUrl = new URL('/public/chinese.woff2', window.location.origin).href;
+  embedFontInSvg(svg, fontUrl, "ChineseFont");
 }
 
 function convertFontFamily(
@@ -231,14 +233,50 @@ function convertFontFamily(
   }
 }
 
-function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string) {
-  const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-  style.textContent = `
-    @font-face {
-      font-family: "${fontFamily}";
-      src: url("${fontUrl}") format("woff2");
+async function getFontAsBase64(fontUrl: string): Promise<string> {
+  try {
+    console.log("Fetching font from:", fontUrl);
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  `;
-  svg.insertBefore(style, svg.firstChild);
+    console.log("Response headers:", Object.fromEntries(response.headers));
+    const blob = await response.blob();
+    console.log("Blob type:", blob.type);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        console.log("Font loaded, data URL prefix:", result.slice(0, 50));
+        resolve(result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error loading font:", error);
+    throw error;
+  }
+}
+
+async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string) {
+  try {
+    const fontBase64 = await getFontAsBase64(fontUrl);
+    if (!fontBase64.startsWith('data:font/woff2;base64,')) {
+      console.error("Invalid font data:", fontBase64.slice(0, 50));
+      throw new Error("Invalid font data");
+    }
+    const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    style.textContent = `
+      @font-face {
+        font-family: "${fontFamily}";
+        src: url("${fontBase64}") format("woff2");
+      }
+    `;
+    svg.insertBefore(style, svg.firstChild);
+    console.log("Font embedded successfully");
+  } catch (error) {
+    console.error("Error embedding font:", error);
+  }
 }
 
