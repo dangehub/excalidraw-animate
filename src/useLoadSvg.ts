@@ -76,6 +76,7 @@ export const useLoadSvg = () => {
           // This is a patch up function to apply new fonts that are not part of Excalidraw package
           // Remove this function once Excalidraw package is updated (v0.17.6 as of now)
           applyNewFontsToSvg(svg, elements);
+          embedFontInSvg(svg, "public/chinese.woff2", "ChineseFont");
 
           const result = animateSvg(svg, elements, options);
           console.log(svg);
@@ -175,6 +176,9 @@ function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
 
     currentTextElementIndex += 1;
   });
+
+  // 确保ChineseFont被正确嵌入
+  embedFontInSvg(svg, "public/chinese.woff2", "ChineseFont");
 }
 
 function convertFontFamily(
@@ -226,3 +230,15 @@ function convertFontFamily(
       break;
   }
 }
+
+function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string) {
+  const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  style.textContent = `
+    @font-face {
+      font-family: "${fontFamily}";
+      src: url("${fontUrl}") format("woff2");
+    }
+  `;
+  svg.insertBefore(style, svg.firstChild);
+}
+
