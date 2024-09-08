@@ -75,7 +75,7 @@ export const useLoadSvg = () => {
               exportPadding: 30,
             });
 
-            applyNewFontsToSvg(svg, elements);
+            await applyNewFontsToSvg(svg, elements);
             const fontUrl = new URL('/chinese.woff2', window.location.origin).href;
             await embedFontInSvg(svg, fontUrl, "ChineseFont");
 
@@ -180,8 +180,8 @@ function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
   });
 
   // 确保ChineseFont被正确嵌入
-  const fontUrl = new URL('/public/chinese.woff2', window.location.origin).href;
-  embedFontInSvg(svg, fontUrl, "ChineseFont");
+  const fontUrl = new URL('/chinese.woff2', window.location.origin).href;
+  return embedFontInSvg(svg, fontUrl, "ChineseFont");
 }
 
 function convertFontFamily(
@@ -229,7 +229,12 @@ function convertFontFamily(
       break;
 
     default:
-      textElement.setAttribute("font-family", DEFAULT_FONT);
+      // 如果文本包含中文字符,使用ChineseFont
+      if (/[\u4e00-\u9fa5]/.test(textElement.textContent || '')) {
+        textElement.setAttribute("font-family", `ChineseFont, ${DEFAULT_FONT}`);
+      } else {
+        textElement.setAttribute("font-family", DEFAULT_FONT);
+      }
       break;
   }
 }
@@ -246,8 +251,18 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
     const { subset } = await loadHbSubset();
 
     const decompressedBinary = decompress(arrayBuffer);
-    // 限制字符集大小,避免处理过多数据
-    const limitedCodePoints = new Set([...Array(1000)].map((_, i) => i));
+    
+    // 使用更小的字符集
+    const commonChineseCharacters = [
+      // 添加常用的中文字符的 Unicode 码点
+      0x4e00, 0x4e8c, 0x4e09, 0x56db, 0x4e94, 0x516d, 0x4e03, 0x516b, 0x4e5d, 0x5341,
+      // ... 添加更多常用字符
+    ];
+    const limitedCodePoints = new Set([
+      ...Array(128).map((_, i) => i), // 基本 ASCII 字符
+      ...commonChineseCharacters
+    ]);
+
     const subsetSnft = subset(decompressedBinary, limitedCodePoints);
     const compressedBinary = compress(subsetSnft);
 
@@ -262,9 +277,18 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
       }
     `;
     svg.insertBefore(style, svg.firstChild);
-    console.log("Font embedded successfully");
+    console.log("Font embedded successfully:", fontFamily);
   } catch (error) {
     console.error("Error embedding font:", error);
+    // 在这里添加一个回退方案，例如使用系统默认字体
+    const fallbackStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    fallbackStyle.textContent = `
+      @font-face {
+        font-family: "${fontFamily}";
+        src: local("SimSun"), local("Microsoft YaHei");
+      }
+    `;
+    svg.insertBefore(fallbackStyle, svg.firstChild);
   }
 }
 
