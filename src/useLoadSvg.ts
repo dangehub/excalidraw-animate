@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-
+import loadWoff2 from "./wasm/woff2.loader";
+import loadHbSubset from "./wasm/hb-subset.loader";
 import {
   exportToSvg,
   restoreElements,
@@ -233,39 +234,26 @@ function convertFontFamily(
   }
 }
 
-async function getFontAsBase64(fontUrl: string): Promise<string> {
+async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string) {
   try {
-    console.log("Fetching font from:", fontUrl);
     const response = await fetch(fontUrl);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    console.log("Response headers:", Object.fromEntries(response.headers));
-    const blob = await response.blob();
-    console.log("Blob type:", blob.type);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        console.log("Font loaded, data URL prefix:", result.slice(0, 50));
-        resolve(result);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error("Error loading font:", error);
-    throw error;
-  }
-}
+    const arrayBuffer = await response.arrayBuffer();
 
-async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string) {
-  try {
-    const fontBase64 = await getFontAsBase64(fontUrl);
-    if (!fontBase64.startsWith('data:font/woff2;base64,')) {
-      console.error("Invalid font data:", fontBase64.slice(0, 50));
-      throw new Error("Invalid font data");
-    }
+    const { compress, decompress } = await loadWoff2();
+    const { subset } = await loadHbSubset();
+
+    const decompressedBinary = decompress(arrayBuffer);
+    // 限制字符集大小,避免处理过多数据
+    const limitedCodePoints = new Set([...Array(1000)].map((_, i) => i));
+    const subsetSnft = subset(decompressedBinary, limitedCodePoints);
+    const compressedBinary = compress(subsetSnft);
+
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
+    const fontBase64 = `data:font/woff2;base64,${base64}`;
+
     const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
     style.textContent = `
       @font-face {
