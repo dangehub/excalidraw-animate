@@ -252,20 +252,20 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
 
     const decompressedBinary = decompress(arrayBuffer);
     
-    // 使用更小的字符集
-    const commonChineseCharacters = [
-      // 添加常用的中文字符的 Unicode 码点
-      0x4e00, 0x4e8c, 0x4e09, 0x56db, 0x4e94, 0x516d, 0x4e03, 0x516b, 0x4e5d, 0x5341,
-      // ... 添加更多常用字符
+    // 分批处理字符
+    const batches = [
+      Array(128).fill(0).map((_, i) => i), // ASCII
+      Array(3500).fill(0).map((_, i) => 0x4e00 + i), // 常用汉字
+      // 可以添加更多批次
     ];
-    const limitedCodePoints = new Set([
-      ...Array(128).map((_, i) => i), // 基本 ASCII 字符
-      ...commonChineseCharacters
-    ]);
 
-    const subsetSnft = subset(decompressedBinary, limitedCodePoints);
-    const compressedBinary = compress(subsetSnft);
+    let finalSubset = new Uint8Array();
+    for (const batch of batches) {
+      const batchSubset = subset(decompressedBinary, new Set(batch));
+      finalSubset = new Uint8Array([...finalSubset, ...batchSubset]);
+    }
 
+    const compressedBinary = compress(finalSubset);
     const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
     const fontBase64 = `data:font/woff2;base64,${base64}`;
 
