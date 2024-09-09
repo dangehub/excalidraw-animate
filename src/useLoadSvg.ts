@@ -75,7 +75,7 @@ export const useLoadSvg = () => {
               exportPadding: 30,
             });
 
-            console.log('SVG export successful, starting to apply new fonts');
+            console.log("SVG export successful, starting to apply new fonts");
             await applyNewFontsToSvg(svg, elements);
 
             const result = animateSvg(svg, elements, options);
@@ -143,13 +143,16 @@ export const FONT_FAMILY = {
   LocalFont: 4,
   Excalifont: 5,
   Nunito: 6,
-  "LilitaOne": 7,
-  "ComicShanns": 8,
+  LilitaOne: 7,
+  ComicShanns: 8,
   "Liberation Sans": 9,
 } as const;
 
-async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
-  console.log('Starting to apply new fonts to SVG');
+async function applyNewFontsToSvg(
+  svg: SVGSVGElement,
+  elements: ExcalidrawElement[]
+) {
+  console.log("Starting to apply new fonts to SVG");
   const textElements = elements.filter(
     (element): element is ExcalidrawTextElement => element.type === "text"
   );
@@ -157,64 +160,82 @@ async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElemen
   const usedFonts = new Map<string, Set<string>>();
 
   textElements.forEach((element) => {
-    const fontName = Object.entries(FONT_FAMILY).find(
-      ([, value]) => value === element.fontFamily
-    )?.[0] || DEFAULT_FONT;
+    const fontName =
+      Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === element.fontFamily
+      )?.[0] || DEFAULT_FONT;
 
     if (!usedFonts.has(fontName)) {
       usedFonts.set(fontName, new Set());
     }
-    element.text.split('').forEach(char => {
+    element.text.split("").forEach((char) => {
       usedFonts.get(fontName)!.add(char);
     });
   });
 
-  console.log('Used fonts:', Array.from(usedFonts.keys()));
+  console.log("Used fonts:", Array.from(usedFonts.keys()));
 
-  await Promise.all(Array.from(usedFonts.entries()).map(async ([fontName, characters]) => {
-    console.log(`Processing font: ${fontName}, number of characters: ${characters.size}`);
-    const fontUrl = new URL(`/${fontName}.woff2`, window.location.origin).href;
-    try {
-      await embedFontInSvg(svg, fontUrl, fontName, characters);
-    } catch (error) {
-      console.error(`Error embedding font ${fontName}:`, error);
-      // Continue processing the next font
-    }
-  }));
+  await Promise.all(
+    Array.from(usedFonts.entries()).map(async ([fontName, characters]) => {
+      console.log(
+        `Processing font: ${fontName}, number of characters: ${characters.size}`
+      );
+      const fontUrl = new URL(`/${fontName}.woff2`, window.location.origin)
+        .href;
+      try {
+        await embedFontInSvg(svg, fontUrl, fontName, characters);
+      } catch (error) {
+        console.error(`Error embedding font ${fontName}:`, error);
+        // Continue processing the next font
+      }
+    })
+  );
 
   svg.querySelectorAll("text").forEach((svgText, index) => {
     if (index < textElements.length) {
       const fontFamily = textElements[index].fontFamily;
       convertFontFamily(svgText, fontFamily);
-      console.log(`Applied font to text element ${index}: ${svgText.getAttribute('font-family')}`);
+      console.log(
+        `Applied font to text element ${index}: ${svgText.getAttribute(
+          "font-family"
+        )}`
+      );
     }
   });
 
-  console.log('New fonts application completed');
+  console.log("New fonts application completed");
 }
 
 function convertFontFamily(
   textElement: SVGTextElement,
   fontFamilyNumber: number | undefined
 ) {
-  const fontName = Object.entries(FONT_FAMILY).find(
-    ([, value]) => value === fontFamilyNumber
-  )?.[0] || DEFAULT_FONT;
+  const fontName =
+    Object.entries(FONT_FAMILY).find(
+      ([, value]) => value === fontFamilyNumber
+    )?.[0] || DEFAULT_FONT;
 
   textElement.setAttribute("font-family", `${fontName}, ${DEFAULT_FONT}`);
 }
 
-async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string, usedCharacters: Set<string>) {
+async function embedFontInSvg(
+  svg: SVGSVGElement,
+  fontUrl: string,
+  fontFamily: string,
+  usedCharacters: Set<string>
+) {
   try {
     console.log(`Starting to embed font: ${fontFamily}`);
-    console.log(`Used characters: ${Array.from(usedCharacters).join('')}`);
+    console.log(`Used characters: ${Array.from(usedCharacters).join("")}`);
 
     const response = await fetch(fontUrl);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    console.log(`Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`);
+    console.log(
+      `Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`
+    );
 
     const { compress, decompress } = await loadWoff2();
     console.log("WOFF2 module loaded successfully");
@@ -224,7 +245,9 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
     let decompressedBinary;
     try {
       decompressedBinary = decompress(arrayBuffer);
-      console.log(`Font size after decompression: ${decompressedBinary.byteLength} bytes`);
+      console.log(
+        `Font size after decompression: ${decompressedBinary.byteLength} bytes`
+      );
     } catch (error) {
       console.error("Font decompression failed:", error);
       throw error;
@@ -234,18 +257,24 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
       throw new Error("Decompressed font data is empty");
     }
 
-    const charCodes = Array.from(usedCharacters).map(char => char.charCodeAt(0));
-    
+    const charCodes = Array.from(usedCharacters).map((char) =>
+      char.charCodeAt(0)
+    );
+
     // Add basic Latin character set
-    for (let i = 0x0020; i <= 0x007F; i++) {
+    for (let i = 0x0020; i <= 0x007f; i++) {
       charCodes.push(i);
     }
 
-    console.log(`Creating font subset, number of characters: ${charCodes.length}`);
+    console.log(
+      `Creating font subset, number of characters: ${charCodes.length}`
+    );
     let fontSubset;
     try {
       fontSubset = subset(decompressedBinary, new Set(charCodes));
-      console.log(`Font subset creation completed, size: ${fontSubset.byteLength} bytes`);
+      console.log(
+        `Font subset creation completed, size: ${fontSubset.byteLength} bytes`
+      );
     } catch (error) {
       console.error("Failed to create font subset:", error);
       // If subset creation fails, use the full font file
@@ -256,7 +285,9 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
     let compressedBinary;
     try {
       compressedBinary = compress(fontSubset);
-      console.log(`Font subset size after compression: ${compressedBinary.byteLength} bytes`);
+      console.log(
+        `Font subset size after compression: ${compressedBinary.byteLength} bytes`
+      );
     } catch (error) {
       console.error("Font compression failed:", error);
       throw error;
@@ -266,12 +297,17 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
       throw new Error("Compressed font data is empty");
     }
 
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
+    const base64 = btoa(
+      String.fromCharCode(...new Uint8Array(compressedBinary))
+    );
     console.log(`Base64 encoded font size: ${base64.length} characters`);
 
     const fontBase64 = `data:font/woff2;base64,${base64}`;
 
-    const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    const style = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "style"
+    );
     style.textContent = `
       @font-face {
         font-family: "${fontFamily}";
@@ -283,7 +319,10 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
   } catch (error) {
     console.error(`Error embedding font ${fontFamily}:`, error);
     // Add a fallback plan
-    const fallbackStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    const fallbackStyle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "style"
+    );
     fallbackStyle.textContent = `
       @font-face {
         font-family: "${fontFamily}";
@@ -295,13 +334,11 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
   }
 }
 
-async function exportToSvgWithFonts(
-  data: {
-    elements: readonly ExcalidrawElement[];
-    appState: Parameters<typeof exportToSvg>[0]["appState"];
-    files: BinaryFiles;
-  }
-) {
+async function exportToSvgWithFonts(data: {
+  elements: readonly ExcalidrawElement[];
+  appState: Parameters<typeof exportToSvg>[0]["appState"];
+  files: BinaryFiles;
+}) {
   console.log("Starting exportToSvgWithFonts");
   const elements = getNonDeletedElements(data.elements);
   const svg = await exportToSvg({
@@ -340,14 +377,14 @@ async function exportSvg(data: {
   console.log("SVG exported with fonts, converting to string");
   const svgString = new XMLSerializer().serializeToString(svg);
   console.log("SVG string created, length:", svgString.length);
-  
+
   // Check font settings in the SVG string
   const fontFamilyMatches = svgString.match(/font-family="[^"]*"/g);
   console.log("Font family occurrences in SVG:", fontFamilyMatches);
 
   const blob = new Blob([svgString], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement("a");
   a.href = url;
   a.download = "excalidraw-export.svg";

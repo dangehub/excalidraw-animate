@@ -40,11 +40,11 @@ const load = (): Promise<{
               const woff2 = {
                 compress: (buffer: ArrayBuffer) =>
                   convertFromVecToUint8Array(
-                    module.woff2Enc(buffer, buffer.byteLength),
+                    module.woff2Enc(buffer, buffer.byteLength)
                   ),
                 decompress: (buffer: ArrayBuffer) =>
                   convertFromVecToUint8Array(
-                    module.woff2Dec(buffer, buffer.byteLength),
+                    module.woff2Dec(buffer, buffer.byteLength)
                   ),
               };
 
@@ -52,7 +52,7 @@ const load = (): Promise<{
             } catch (e) {
               reject(e);
             }
-          },
+          }
         );
     } catch (e) {
       reject(e);

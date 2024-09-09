@@ -49,12 +49,12 @@ function subset(
   hbSubsetWasm: any,
   heapu8: Uint8Array,
   font: ArrayBuffer,
-  codePoints: ReadonlySet<number>,
+  codePoints: ReadonlySet<number>
 ) {
   const input = hbSubsetWasm.hb_subset_input_create_or_fail();
   if (input === 0) {
     throw new Error(
-      "hb_subset_input_create_or_fail (harfbuzz) returned zero, indicating failure",
+      "hb_subset_input_create_or_fail (harfbuzz) returned zero, indicating failure"
     );
   }
 
@@ -67,7 +67,7 @@ function subset(
     font.byteLength,
     2, // HB_MEMORY_MODE_WRITABLE
     0,
-    0,
+    0
   );
   const face = hbSubsetWasm.hb_face_create(blob, 0);
   hbSubsetWasm.hb_blob_destroy(blob);
@@ -75,7 +75,7 @@ function subset(
   // Do the equivalent of --font-features=*
   const layoutFeatures = hbSubsetWasm.hb_subset_input_set(
     input,
-    6, // HB_SUBSET_SETS_LAYOUT_FEATURE_TAG
+    6 // HB_SUBSET_SETS_LAYOUT_FEATURE_TAG
   );
   hbSubsetWasm.hb_set_clear(layoutFeatures);
   hbSubsetWasm.hb_set_invert(layoutFeatures);
@@ -161,7 +161,7 @@ function subset(
       hbSubsetWasm.hb_face_destroy(face);
       hbSubsetWasm.free(fontBuffer);
       throw new Error(
-        "hb_subset_or_fail (harfbuzz) returned zero, indicating failure. Maybe the input file is corrupted?",
+        "hb_subset_or_fail (harfbuzz) returned zero, indicating failure. Maybe the input file is corrupted?"
       );
     }
   } finally {
@@ -180,12 +180,12 @@ function subset(
     hbSubsetWasm.hb_face_destroy(face);
     hbSubsetWasm.free(fontBuffer);
     throw new Error(
-      "Failed to create subset font, maybe the input file is corrupted?",
+      "Failed to create subset font, maybe the input file is corrupted?"
     );
   }
 
   const subsetFont = new Uint8Array(
-    heapu8.subarray(offset, offset + subsetByteLength),
+    heapu8.subarray(offset, offset + subsetByteLength)
   );
 
   // Clean up

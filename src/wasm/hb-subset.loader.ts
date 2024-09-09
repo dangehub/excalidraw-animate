@@ -7,7 +7,7 @@ let loadedWasm: ReturnType<typeof load> | null = null;
 const load = (): Promise<{
   subset: (
     fontBuffer: ArrayBuffer,
-    codePoints: ReadonlySet<number>,
+    codePoints: ReadonlySet<number>
   ) => Uint8Array;
 }> => {
   return new Promise(async (resolve, reject) => {
@@ -26,13 +26,13 @@ const load = (): Promise<{
           const hbSubset = {
             subset: (
               fontBuffer: ArrayBuffer,
-              codePoints: ReadonlySet<number>,
+              codePoints: ReadonlySet<number>
             ) => {
               return bindings.default.subset(
                 harfbuzzJsWasm,
                 heapu8,
                 fontBuffer,
-                codePoints,
+                codePoints
               );
             },
           };

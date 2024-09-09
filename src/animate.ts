@@ -6,7 +6,7 @@ import type {
 
 import { getFreeDrawSvgPath } from "@excalidraw/excalidraw";
 
-import { FONT_FAMILY } from "./useLoadSvg"; 
+import { FONT_FAMILY } from "./useLoadSvg";
 
 type AnimateOptions = {
   startMs?: number;
@@ -272,10 +272,8 @@ const animateText = (
   durationMs: number,
   options: AnimateOptions
 ) => {
-
   const originalFontFamily = ele.getAttribute("font-family");
   const originalFontFamilyNumber = ele.getAttribute("font-family-number");
-
 
   const anchor = ele.getAttribute("text-anchor") || "start";
   if (anchor !== "start") {
@@ -322,7 +320,6 @@ const animateText = (
     options
   );
 
-
   if (originalFontFamily) {
     ele.setAttribute("font-family", originalFontFamily);
   }
@@ -336,7 +333,10 @@ const animateText = (
     console.log("Inner text element font-family set to:", originalFontFamily);
   }
 
-  console.log("Text element font-family after:", ele.getAttribute("font-family"));
+  console.log(
+    "Text element font-family after:",
+    ele.getAttribute("font-family")
+  );
 };
 
 const animateFromToPath = (
@@ -507,13 +507,11 @@ const patchSvgText = (
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
   childNodes.forEach((child, index) => {
-
     const originalFontFamily = child.getAttribute("font-family");
     const originalFontFamilyNumber = child.getAttribute("font-family-number");
 
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
-
 
     if (originalFontFamily) {
       child.setAttribute("font-family", originalFontFamily);
@@ -696,17 +694,19 @@ export const animateSvg = (
     groupNodes.map((ele, index) => [ele, elements[index]])
   );
 
-
   groupNodes.forEach((ele, index) => {
     const element = elements[index];
     if (element.type === "text") {
       const fontFamilyNumber = element.fontFamily;
-      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
-      
+      ele.setAttribute(
+        "font-family-number",
+        fontFamilyNumber?.toString() || ""
+      );
+
       const fontName = Object.entries(FONT_FAMILY).find(
         ([, value]) => value === fontFamilyNumber
       )?.[0];
-      
+
       if (fontName) {
         ele.setAttribute("font-family", `${fontName}, sans-serif`);
         console.log(`Set font-family for text to: ${fontName}, sans-serif`);
@@ -716,7 +716,6 @@ export const animateSvg = (
       }
     }
   });
-
 
   sortSvgNodes(groupNodes, elements).forEach((ele, index, array) => {
     const element = groupElement2Element.get(
@@ -759,23 +758,26 @@ export const animateSvg = (
         finished.set(ele, true);
       }
     }
-
   });
-
 
   groupNodes.forEach((ele, index) => {
     const element = elements[index];
     if (element.type === "text") {
       const fontFamilyNumber = element.fontFamily;
-      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
-      
+      ele.setAttribute(
+        "font-family-number",
+        fontFamilyNumber?.toString() || ""
+      );
+
       const fontName = Object.entries(FONT_FAMILY).find(
         ([, value]) => value === fontFamilyNumber
       )?.[0];
-      
+
       if (fontName) {
         ele.setAttribute("font-family", `${fontName}, sans-serif`);
-        console.log(`Re-applied font-family for text to: ${fontName}, sans-serif`);
+        console.log(
+          `Re-applied font-family for text to: ${fontName}, sans-serif`
+        );
       } else {
         ele.setAttribute("font-family", "sans-serif");
         console.log("Re-applied font-family to default: sans-serif");
@@ -783,15 +785,16 @@ export const animateSvg = (
     }
   });
 
-
-  svg.querySelectorAll("g[font-family-number] > text").forEach((textElement) => {
-    const parentG = textElement.parentElement;
-    if (parentG) {
-      const fontFamily = parentG.getAttribute("font-family");
-      textElement.setAttribute("font-family", fontFamily || "");
-      console.log("Final check: Set inner text font-family to:", fontFamily);
-    }
-  });
+  svg
+    .querySelectorAll("g[font-family-number] > text")
+    .forEach((textElement) => {
+      const parentG = textElement.parentElement;
+      if (parentG) {
+        const fontFamily = parentG.getAttribute("font-family");
+        textElement.setAttribute("font-family", fontFamily || "");
+        console.log("Final check: Set inner text font-family to:", fontFamily);
+      }
+    });
 
   finishedMs = current + 1000; // 1 sec margin
   return { finishedMs };
