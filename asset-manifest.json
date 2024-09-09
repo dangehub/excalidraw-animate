@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/excalidraw-animate/static/css/main.f96bad29.css",
-    "main.js": "/excalidraw-animate/static/js/main.cae80695.js",
+    "main.js": "/excalidraw-animate/static/js/main.0a9d395b.js",
     "static/js/433.a497ce69.chunk.js": "/excalidraw-animate/static/js/433.a497ce69.chunk.js",
     "static/js/830.b1c8b539.chunk.js": "/excalidraw-animate/static/js/830.b1c8b539.chunk.js",
     "static/js/286.1b4b0fc3.chunk.js": "/excalidraw-animate/static/js/286.1b4b0fc3.chunk.js",
     "static/js/863.cdc212c9.chunk.js": "/excalidraw-animate/static/js/863.cdc212c9.chunk.js",
     "index.html": "/excalidraw-animate/index.html",
     "main.f96bad29.css.map": "/excalidraw-animate/static/css/main.f96bad29.css.map",
-    "main.cae80695.js.map": "/excalidraw-animate/static/js/main.cae80695.js.map",
+    "main.0a9d395b.js.map": "/excalidraw-animate/static/js/main.0a9d395b.js.map",
     "433.a497ce69.chunk.js.map": "/excalidraw-animate/static/js/433.a497ce69.chunk.js.map",
     "830.b1c8b539.chunk.js.map": "/excalidraw-animate/static/js/830.b1c8b539.chunk.js.map",
     "286.1b4b0fc3.chunk.js.map": "/excalidraw-animate/static/js/286.1b4b0fc3.chunk.js.map",
@@ -16,6 +16,6 @@
   },
   "entrypoints": [
     "static/css/main.f96bad29.css",
-    "static/js/main.cae80695.js"
+    "static/js/main.0a9d395b.js"
   ]
 }
