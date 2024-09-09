@@ -6,6 +6,8 @@ import type {
 
 import { getFreeDrawSvgPath } from "@excalidraw/excalidraw";
 
+import { FONT_FAMILY } from "./useLoadSvg"; // 确保导入 FONT_FAMILY
+
 type AnimateOptions = {
   startMs?: number;
   pointerImg?: string;
@@ -316,7 +318,20 @@ const animateText = (
   );
 
   // 添加此代码以确保正确应用新字体
-  ele.setAttribute("font-family", "ChineseFont, sans-serif");
+  const fontFamilyNumber = Number(ele.getAttribute("font-family-number"));
+  console.log("Font family number (raw):", ele.getAttribute("font-family-number"));
+  console.log("Font family number (parsed):", fontFamilyNumber);
+  const fontName = Object.entries(FONT_FAMILY).find(
+    ([, value]) => value === fontFamilyNumber
+  )?.[0];
+  console.log("Font name:", fontName);
+  if (fontName) {
+    ele.setAttribute("font-family", `${fontName}, sans-serif`);
+    console.log("Set font-family to:", `${fontName}, sans-serif`);
+  } else {
+    ele.setAttribute("font-family", "sans-serif");
+    console.log("Set font-family to default: sans-serif");
+  }
 };
 
 const animateFromToPath = (
@@ -487,7 +502,6 @@ const patchSvgText = (
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
   childNodes.forEach((child) => {
-    child.setAttribute("font-family", "ChineseFont, sans-serif");
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
   });
@@ -706,7 +720,16 @@ export const animateSvg = (
       }
     }
     if (element.type === "text") {
-      ele.setAttribute("font-family", "ChineseFont, sans-serif");
+      const fontName = Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === element.fontFamily
+      )?.[0];
+      if (fontName) {
+        ele.setAttribute("font-family", `${fontName}, sans-serif`);
+      } else {
+        ele.setAttribute("font-family", "sans-serif");
+      }
+      ele.setAttribute("font-family-number", element.fontFamily?.toString() || "");
+      console.log("Setting font-family-number:", element.fontFamily);
     }
   });
   finishedMs = current + 1000; // 1 sec margin
