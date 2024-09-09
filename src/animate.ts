@@ -325,9 +325,17 @@ const animateText = (
     ([, value]) => value === fontFamilyNumber
   )?.[0];
   console.log("Font name:", fontName);
+
   if (fontName) {
-    ele.setAttribute("font-family", `${fontName}, sans-serif`);
-    console.log("Set font-family to:", `${fontName}, sans-serif`);
+    const text = ele.textContent || '';
+    const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+    if (hasChinese) {
+      ele.setAttribute("font-family", `ChineseFont, ${fontName}, sans-serif`);
+      console.log("Set font-family for text with Chinese to:", `ChineseFont, ${fontName}, sans-serif`);
+    } else {
+      ele.setAttribute("font-family", `${fontName}, sans-serif`);
+      console.log("Set font-family for non-Chinese text to:", `${fontName}, sans-serif`);
+    }
   } else {
     ele.setAttribute("font-family", "sans-serif");
     console.log("Set font-family to default: sans-serif");
@@ -720,16 +728,9 @@ export const animateSvg = (
       }
     }
     if (element.type === "text") {
-      const fontName = Object.entries(FONT_FAMILY).find(
-        ([, value]) => value === element.fontFamily
-      )?.[0];
-      if (fontName) {
-        ele.setAttribute("font-family", `${fontName}, sans-serif`);
-      } else {
-        ele.setAttribute("font-family", "sans-serif");
-      }
-      ele.setAttribute("font-family-number", element.fontFamily?.toString() || "");
-      console.log("Setting font-family-number:", element.fontFamily);
+      const fontFamilyNumber = element.fontFamily;
+      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
+      console.log("Setting font-family-number:", fontFamilyNumber);
     }
   });
   finishedMs = current + 1000; // 1 sec margin

@@ -75,7 +75,7 @@ export const useLoadSvg = () => {
               exportPadding: 30,
             });
 
-            await applyNewFontsToSvg(svg, elements);
+            applyNewFontsToSvg(svg, elements);
 
             // 收集使用的字符和字体
             const usedFonts = new Map<string, Set<string>>();
@@ -97,7 +97,6 @@ export const useLoadSvg = () => {
             // 嵌入使用的字体子集
             for (const [fontName, characters] of usedFonts.entries()) {
               const fontUrl = new URL(`/${fontName}.woff2`, window.location.origin).href;
-              console.log("Embedding font:", fontName, "with characters:", Array.from(characters));
               await embedFontInSvg(svg, fontUrl, fontName, characters);
             }
 
@@ -196,7 +195,6 @@ function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
     const fontFamily = textElements[currentTextElementIndex]?.fontFamily;
     svgGroup.querySelectorAll("text").forEach((svgText) => {
       convertFontFamily(svgText, fontFamily);
-      // 添加这行，确保设置 font-family-number 属性
       svgText.setAttribute("font-family-number", fontFamily?.toString() || "");
     });
 
@@ -213,10 +211,26 @@ function convertFontFamily(
   )?.[0];
 
   if (fontName) {
-    textElement.setAttribute("font-family", `${fontName}, ${DEFAULT_FONT}`);
+    if (fontFamilyNumber === 4) { // ChineseFont
+      textElement.setAttribute("font-family", `${fontName}, ${DEFAULT_FONT}`);
+    } else {
+      textElement.setAttribute("font-family", `${fontName}, ChineseFont, ${DEFAULT_FONT}`);
+    }
   } else {
     textElement.setAttribute("font-family", DEFAULT_FONT);
   }
+}
+
+const BATCH_SIZE = 1000; // 每批处理的字符数
+
+async function processCharacters(decompressedBinary: ArrayBuffer, charCodes: number[], subset: any, compress: any) {
+  let fontSubset = decompressedBinary;
+  for (let i = 0; i < charCodes.length; i += BATCH_SIZE) {
+    const batch = charCodes.slice(i, i + BATCH_SIZE);
+    fontSubset = subset(fontSubset, new Set(batch));
+    console.log(`Font processing progress: ${Math.round((i + BATCH_SIZE) / charCodes.length * 100)}%`);
+  }
+  return compress(fontSubset);
 }
 
 async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string, usedCharacters: Set<string>) {
@@ -232,11 +246,15 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
 
     const decompressedBinary = decompress(arrayBuffer);
     
-    // 创建字符集
-    const charCodes = Array.from(usedCharacters).map(char => char.charCodeAt(0));
+    const charCodes = Array.from(new Set(Array.from(usedCharacters).map(char => char.charCodeAt(0))));
+    
+    // 添加基本拉丁字符集
+    for (let i = 0x0020; i <= 0x007F; i++) {
+      charCodes.push(i);
+    }
 
-    const fontSubset = subset(decompressedBinary, new Set(charCodes));
-    const compressedBinary = compress(fontSubset);
+    console.log(`Processing ${charCodes.length} characters for ${fontFamily}`);
+    const compressedBinary = await processCharacters(decompressedBinary, charCodes, subset, compress);
     const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
     const fontBase64 = `data:font/woff2;base64,${base64}`;
 
@@ -262,4 +280,3 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
     svg.insertBefore(fallbackStyle, svg.firstChild);
   }
 }
-
