@@ -272,6 +272,11 @@ const animateText = (
   durationMs: number,
   options: AnimateOptions
 ) => {
+  // 保存原始字体设置
+  const originalFontFamily = ele.getAttribute("font-family");
+  const originalFontFamilyNumber = ele.getAttribute("font-family-number");
+
+  // 其余的动画处理代码
   const anchor = ele.getAttribute("text-anchor") || "start";
   if (anchor !== "start") {
     // Not sure how to support it, fallback with opacity
@@ -317,29 +322,21 @@ const animateText = (
     options
   );
 
-  // 添加此代码以确保正确应用新字体
-  const fontFamilyNumber = Number(ele.getAttribute("font-family-number"));
-  console.log("Font family number (raw):", ele.getAttribute("font-family-number"));
-  console.log("Font family number (parsed):", fontFamilyNumber);
-  const fontName = Object.entries(FONT_FAMILY).find(
-    ([, value]) => value === fontFamilyNumber
-  )?.[0];
-  console.log("Font name:", fontName);
-
-  if (fontName) {
-    const text = ele.textContent || '';
-    const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-    if (hasChinese) {
-      ele.setAttribute("font-family", `ChineseFont, ${fontName}, sans-serif`);
-      console.log("Set font-family for text with Chinese to:", `ChineseFont, ${fontName}, sans-serif`);
-    } else {
-      ele.setAttribute("font-family", `${fontName}, sans-serif`);
-      console.log("Set font-family for non-Chinese text to:", `${fontName}, sans-serif`);
-    }
-  } else {
-    ele.setAttribute("font-family", "sans-serif");
-    console.log("Set font-family to default: sans-serif");
+  // 动画处理完成后，恢复原始字体设置
+  if (originalFontFamily) {
+    ele.setAttribute("font-family", originalFontFamily);
   }
+  if (originalFontFamilyNumber) {
+    ele.setAttribute("font-family-number", originalFontFamilyNumber);
+  }
+
+  const textElement = ele.querySelector("text");
+  if (textElement) {
+    textElement.setAttribute("font-family", originalFontFamily || "");
+    console.log("Inner text element font-family set to:", originalFontFamily);
+  }
+
+  console.log("Text element font-family after:", ele.getAttribute("font-family"));
 };
 
 const animateFromToPath = (
@@ -509,9 +506,21 @@ const patchSvgText = (
 ) => {
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
-  childNodes.forEach((child) => {
+  childNodes.forEach((child, index) => {
+    // 保存原始字体设置
+    const originalFontFamily = child.getAttribute("font-family");
+    const originalFontFamilyNumber = child.getAttribute("font-family-number");
+
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
+
+    // 恢复原始字体设置
+    if (originalFontFamily) {
+      child.setAttribute("font-family", originalFontFamily);
+    }
+    if (originalFontFamilyNumber) {
+      child.setAttribute("font-family-number", originalFontFamilyNumber);
+    }
   });
 };
 
@@ -686,7 +695,30 @@ export const animateSvg = (
   const groupElement2Element = new Map(
     groupNodes.map((ele, index) => [ele, elements[index]])
   );
-  sortSvgNodes(groupNodes, elements).forEach((ele) => {
+
+  // 首先，处理所有元素的字体
+  groupNodes.forEach((ele, index) => {
+    const element = elements[index];
+    if (element.type === "text") {
+      const fontFamilyNumber = element.fontFamily;
+      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
+      
+      const fontName = Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === fontFamilyNumber
+      )?.[0];
+      
+      if (fontName) {
+        ele.setAttribute("font-family", `${fontName}, sans-serif`);
+        console.log(`Set font-family for text to: ${fontName}, sans-serif`);
+      } else {
+        ele.setAttribute("font-family", "sans-serif");
+        console.log("Set font-family to default: sans-serif");
+      }
+    }
+  });
+
+  // 然后，处理动画
+  sortSvgNodes(groupNodes, elements).forEach((ele, index, array) => {
     const element = groupElement2Element.get(
       ele
     ) as NonDeletedExcalidrawElement;
@@ -727,12 +759,46 @@ export const animateSvg = (
         finished.set(ele, true);
       }
     }
+
+    // 添加日志，特别关注最后一个元素
+    if (index === array.length - 1) {
+      console.log("Processing last element:", ele);
+      console.log("Last element font-family:", ele.getAttribute("font-family"));
+      console.log("Last element font-family-number:", ele.getAttribute("font-family-number"));
+    }
+  });
+
+  // 动画处理完成后，再次应用字体设置
+  groupNodes.forEach((ele, index) => {
+    const element = elements[index];
     if (element.type === "text") {
       const fontFamilyNumber = element.fontFamily;
       ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
-      console.log("Setting font-family-number:", fontFamilyNumber);
+      
+      const fontName = Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === fontFamilyNumber
+      )?.[0];
+      
+      if (fontName) {
+        ele.setAttribute("font-family", `${fontName}, sans-serif`);
+        console.log(`Re-applied font-family for text to: ${fontName}, sans-serif`);
+      } else {
+        ele.setAttribute("font-family", "sans-serif");
+        console.log("Re-applied font-family to default: sans-serif");
+      }
     }
   });
+
+  // 最后的检查和修复
+  svg.querySelectorAll("g[font-family-number] > text").forEach((textElement) => {
+    const parentG = textElement.parentElement;
+    if (parentG) {
+      const fontFamily = parentG.getAttribute("font-family");
+      textElement.setAttribute("font-family", fontFamily || "");
+      console.log("Final check: Set inner text font-family to:", fontFamily);
+    }
+  });
+
   finishedMs = current + 1000; // 1 sec margin
   return { finishedMs };
 };

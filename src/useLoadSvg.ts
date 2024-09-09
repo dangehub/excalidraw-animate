@@ -100,6 +100,9 @@ export const useLoadSvg = () => {
               await embedFontInSvg(svg, fontUrl, fontName, characters);
             }
 
+            // 再次应用字体，以确保嵌入后的字体被正确应用
+            applyNewFontsToSvg(svg, elements);
+
             const result = animateSvg(svg, elements, options);
             console.log("SVG processed successfully");
             return { svg, finishedMs: result.finishedMs };
@@ -178,46 +181,41 @@ export const FONT_FAMILY = {
  * issue link: https://github.com/dai-shi/excalidraw-animate/issues/55
  *  */
 function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
-  const textElements: ExcalidrawTextElement[] = elements.filter(
-    (element): element is ExcalidrawTextElement =>
-      element.type === "text" && !!element.fontFamily
-  ) as ExcalidrawTextElement[];
+  const textElements = elements.filter(
+    (element): element is ExcalidrawTextElement => element.type === "text"
+  );
 
-  /** index to keep track of block of text elements */
-  let currentTextElementIndex = 0;
-
-  // Since text element is represented in a group in given svg
-  // apply font family based on the group that contains the text elements
-  svg.querySelectorAll("g").forEach((svgGroup) => {
-    // It indicates the group is not for text - thus skip it
-    if (svgGroup.hasAttribute("stroke-linecap")) return;
-
-    const fontFamily = textElements[currentTextElementIndex]?.fontFamily;
-    svgGroup.querySelectorAll("text").forEach((svgText) => {
+  svg.querySelectorAll("text").forEach((svgText, index) => {
+    if (index < textElements.length) {
+      const fontFamily = textElements[index].fontFamily;
       convertFontFamily(svgText, fontFamily);
       svgText.setAttribute("font-family-number", fontFamily?.toString() || "");
-    });
 
-    currentTextElementIndex += 1;
+      console.log(`Applied font to element ${index}:`, svgText.getAttribute("font-family"));
+    }
   });
+
+  // 检查最后一个元素
+  const lastText = svg.querySelector("text:last-of-type");
+  if (lastText) {
+    console.log("Last text element font-family:", lastText.getAttribute("font-family"));
+    console.log("Last text element font-family-number:", lastText.getAttribute("font-family-number"));
+  }
+
 }
 
 function convertFontFamily(
   textElement: SVGTextElement,
-  fontFamilyNumber: number | undefined
+  fontFamily: number | undefined
 ) {
   const fontName = Object.entries(FONT_FAMILY).find(
-    ([, value]) => value === fontFamilyNumber
+    ([, value]) => value === fontFamily
   )?.[0];
 
   if (fontName) {
-    if (fontFamilyNumber === 4) { // ChineseFont
-      textElement.setAttribute("font-family", `${fontName}, ${DEFAULT_FONT}`);
-    } else {
-      textElement.setAttribute("font-family", `${fontName}, ChineseFont, ${DEFAULT_FONT}`);
-    }
+    textElement.setAttribute("font-family", `${fontName}, ChineseFont, ${DEFAULT_FONT}`);
   } else {
-    textElement.setAttribute("font-family", DEFAULT_FONT);
+    textElement.setAttribute("font-family", `ChineseFont, ${DEFAULT_FONT}`);
   }
 }
 
@@ -248,8 +246,12 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
     
     const charCodes = Array.from(new Set(Array.from(usedCharacters).map(char => char.charCodeAt(0))));
     
-    // 添加基本拉丁字符集
+    // 添加基本拉丁字符集和中文字符集
     for (let i = 0x0020; i <= 0x007F; i++) {
+      charCodes.push(i);
+    }
+    // 添加常用中文字符集（简体）
+    for (let i = 0x4E00; i <= 0x9FFF; i++) {
       charCodes.push(i);
     }
 
