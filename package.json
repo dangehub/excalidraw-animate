@@ -1,7 +1,7 @@
 {
   "name": "excalidraw-animate",
   "version": "0.6.1",
-  "homepage": "./",
+  "homepage": "https://dangehub.github.io/excalidraw-animate/",
   "source": "./src/library.ts",
   "module": "./dist/library.js",
   "types": "./dist/library.d.ts",
