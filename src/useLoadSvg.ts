@@ -75,14 +75,14 @@ export const useLoadSvg = () => {
               exportPadding: 30,
             });
 
-            console.log('SVG 导出成功，开始应用新字体');
+            console.log('SVG export successful, starting to apply new fonts');
             await applyNewFontsToSvg(svg, elements);
 
             const result = animateSvg(svg, elements, options);
-            console.log("SVG 处理成功完成");
+            console.log("SVG processing completed");
             return { svg, finishedMs: result.finishedMs };
           } catch (error) {
-            console.error("处理 SVG 时出错:", error);
+            console.error("Error processing SVG:", error);
             throw error;
           }
         })
@@ -140,7 +140,7 @@ export const FONT_FAMILY = {
   Virgil: 1,
   Helvetica: 2,
   Cascadia: 3,
-  ChineseFont: 4,
+  LocalFont: 4,
   Excalifont: 5,
   Nunito: 6,
   "LilitaOne": 7,
@@ -149,7 +149,7 @@ export const FONT_FAMILY = {
 } as const;
 
 async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
-  console.log('开始应用新字体到 SVG');
+  console.log('Starting to apply new fonts to SVG');
   const textElements = elements.filter(
     (element): element is ExcalidrawTextElement => element.type === "text"
   );
@@ -169,16 +169,16 @@ async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElemen
     });
   });
 
-  console.log('使用的字体:', Array.from(usedFonts.keys()));
+  console.log('Used fonts:', Array.from(usedFonts.keys()));
 
   await Promise.all(Array.from(usedFonts.entries()).map(async ([fontName, characters]) => {
-    console.log(`处理字体: ${fontName}, 字符数: ${characters.size}`);
+    console.log(`Processing font: ${fontName}, number of characters: ${characters.size}`);
     const fontUrl = new URL(`/${fontName}.woff2`, window.location.origin).href;
     try {
       await embedFontInSvg(svg, fontUrl, fontName, characters);
     } catch (error) {
-      console.error(`嵌入字体 ${fontName} 失败:`, error);
-      // 继续处理下一个字体
+      console.error(`Error embedding font ${fontName}:`, error);
+      // Continue processing the next font
     }
   }));
 
@@ -186,11 +186,11 @@ async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElemen
     if (index < textElements.length) {
       const fontFamily = textElements[index].fontFamily;
       convertFontFamily(svgText, fontFamily);
-      console.log(`应用字体到文本元素 ${index}: ${svgText.getAttribute('font-family')}`);
+      console.log(`Applied font to text element ${index}: ${svgText.getAttribute('font-family')}`);
     }
   });
 
-  console.log('新字体应用完成');
+  console.log('New fonts application completed');
 }
 
 function convertFontFamily(
@@ -206,68 +206,68 @@ function convertFontFamily(
 
 async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string, usedCharacters: Set<string>) {
   try {
-    console.log(`开始嵌入字体: ${fontFamily}`);
-    console.log(`使用的字符: ${Array.from(usedCharacters).join('')}`);
+    console.log(`Starting to embed font: ${fontFamily}`);
+    console.log(`Used characters: ${Array.from(usedCharacters).join('')}`);
 
     const response = await fetch(fontUrl);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    console.log(`成功获取字体文件: ${fontFamily}, 大小: ${arrayBuffer.byteLength} 字节`);
+    console.log(`Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`);
 
     const { compress, decompress } = await loadWoff2();
-    console.log("WOFF2 模块加载成功");
+    console.log("WOFF2 module loaded successfully");
     const { subset } = await loadHbSubset();
-    console.log("HB-subset 模块加载成功");
+    console.log("HB-subset module loaded successfully");
 
     let decompressedBinary;
     try {
       decompressedBinary = decompress(arrayBuffer);
-      console.log(`字体解压缩后大小: ${decompressedBinary.byteLength} 字节`);
+      console.log(`Font size after decompression: ${decompressedBinary.byteLength} bytes`);
     } catch (error) {
-      console.error("字体解压缩失败:", error);
+      console.error("Font decompression failed:", error);
       throw error;
     }
 
     if (decompressedBinary.byteLength === 0) {
-      throw new Error("解压缩后的字体数据为空");
+      throw new Error("Decompressed font data is empty");
     }
 
     const charCodes = Array.from(usedCharacters).map(char => char.charCodeAt(0));
     
-    // 添加基本拉丁字符集
+    // Add basic Latin character set
     for (let i = 0x0020; i <= 0x007F; i++) {
       charCodes.push(i);
     }
 
-    console.log(`正在创建字体子集，字符数: ${charCodes.length}`);
+    console.log(`Creating font subset, number of characters: ${charCodes.length}`);
     let fontSubset;
     try {
       fontSubset = subset(decompressedBinary, new Set(charCodes));
-      console.log(`字体子集创建完成，大小: ${fontSubset.byteLength} 字节`);
+      console.log(`Font subset creation completed, size: ${fontSubset.byteLength} bytes`);
     } catch (error) {
-      console.error("创建字体子集失败:", error);
-      // 如果创建子集失败，使用完整的字体文件
+      console.error("Failed to create font subset:", error);
+      // If subset creation fails, use the full font file
       fontSubset = decompressedBinary;
-      console.log("使用完整字体文件");
+      console.log("Using full font file");
     }
 
     let compressedBinary;
     try {
       compressedBinary = compress(fontSubset);
-      console.log(`字体子集压缩后大小: ${compressedBinary.byteLength} 字节`);
+      console.log(`Font subset size after compression: ${compressedBinary.byteLength} bytes`);
     } catch (error) {
-      console.error("字体压缩失败:", error);
+      console.error("Font compression failed:", error);
       throw error;
     }
 
     if (compressedBinary.byteLength === 0) {
-      throw new Error("压缩后的字体数据为空");
+      throw new Error("Compressed font data is empty");
     }
 
     const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
-    console.log(`Base64 编码后的字体大小: ${base64.length} 字符`);
+    console.log(`Base64 encoded font size: ${base64.length} characters`);
 
     const fontBase64 = `data:font/woff2;base64,${base64}`;
 
@@ -279,10 +279,10 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
       }
     `;
     svg.insertBefore(style, svg.firstChild);
-    console.log(`字体 ${fontFamily} 成功嵌入 SVG`);
+    console.log(`Font ${fontFamily} successfully embedded in SVG`);
   } catch (error) {
-    console.error(`嵌入字体 ${fontFamily} 时出错:`, error);
-    // 添加一个回退方案
+    console.error(`Error embedding font ${fontFamily}:`, error);
+    // Add a fallback plan
     const fallbackStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
     fallbackStyle.textContent = `
       @font-face {
@@ -291,7 +291,7 @@ async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: s
       }
     `;
     svg.insertBefore(fallbackStyle, svg.firstChild);
-    console.log(`已为字体 ${fontFamily} 添加回退方案`);
+    console.log(`Fallback plan added for font ${fontFamily}`);
   }
 }
 
@@ -314,7 +314,7 @@ async function exportToSvgWithFonts(
   console.log("SVG exported, applying new fonts");
   await applyNewFontsToSvg(svg, elements);
 
-  // 移除在线字体引用
+  // Remove online font references
   const defsElement = svg.querySelector("defs");
   if (defsElement) {
     const styleFonts = defsElement.querySelector(".style-fonts");
@@ -323,7 +323,7 @@ async function exportToSvgWithFonts(
     }
   }
 
-  // 检查最终的 SVG
+  // Check the final SVG
   console.log("Final SVG structure:");
   console.log(svg.outerHTML);
 
@@ -341,7 +341,7 @@ async function exportSvg(data: {
   const svgString = new XMLSerializer().serializeToString(svg);
   console.log("SVG string created, length:", svgString.length);
   
-  // 检查 SVG 字符串中的字体设置
+  // Check font settings in the SVG string
   const fontFamilyMatches = svgString.match(/font-family="[^"]*"/g);
   console.log("Font family occurrences in SVG:", fontFamilyMatches);
 

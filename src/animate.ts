@@ -6,7 +6,7 @@ import type {
 
 import { getFreeDrawSvgPath } from "@excalidraw/excalidraw";
 
-import { FONT_FAMILY } from "./useLoadSvg"; // 确保导入 FONT_FAMILY
+import { FONT_FAMILY } from "./useLoadSvg"; 
 
 type AnimateOptions = {
   startMs?: number;
@@ -272,11 +272,11 @@ const animateText = (
   durationMs: number,
   options: AnimateOptions
 ) => {
-  // 保存原始字体设置
+
   const originalFontFamily = ele.getAttribute("font-family");
   const originalFontFamilyNumber = ele.getAttribute("font-family-number");
 
-  // 其余的动画处理代码
+
   const anchor = ele.getAttribute("text-anchor") || "start";
   if (anchor !== "start") {
     // Not sure how to support it, fallback with opacity
@@ -322,7 +322,7 @@ const animateText = (
     options
   );
 
-  // 动画处理完成后，恢复原始字体设置
+
   if (originalFontFamily) {
     ele.setAttribute("font-family", originalFontFamily);
   }
@@ -507,14 +507,14 @@ const patchSvgText = (
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
   childNodes.forEach((child, index) => {
-    // 保存原始字体设置
+
     const originalFontFamily = child.getAttribute("font-family");
     const originalFontFamilyNumber = child.getAttribute("font-family-number");
 
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
 
-    // 恢复原始字体设置
+
     if (originalFontFamily) {
       child.setAttribute("font-family", originalFontFamily);
     }
@@ -696,7 +696,7 @@ export const animateSvg = (
     groupNodes.map((ele, index) => [ele, elements[index]])
   );
 
-  // 首先，处理所有元素的字体
+
   groupNodes.forEach((ele, index) => {
     const element = elements[index];
     if (element.type === "text") {
@@ -717,7 +717,7 @@ export const animateSvg = (
     }
   });
 
-  // 然后，处理动画
+
   sortSvgNodes(groupNodes, elements).forEach((ele, index, array) => {
     const element = groupElement2Element.get(
       ele
@@ -760,15 +760,9 @@ export const animateSvg = (
       }
     }
 
-    // 添加日志，特别关注最后一个元素
-    if (index === array.length - 1) {
-      console.log("Processing last element:", ele);
-      console.log("Last element font-family:", ele.getAttribute("font-family"));
-      console.log("Last element font-family-number:", ele.getAttribute("font-family-number"));
-    }
   });
 
-  // 动画处理完成后，再次应用字体设置
+
   groupNodes.forEach((ele, index) => {
     const element = elements[index];
     if (element.type === "text") {
@@ -789,7 +783,7 @@ export const animateSvg = (
     }
   });
 
-  // 最后的检查和修复
+
   svg.querySelectorAll("g[font-family-number] > text").forEach((textElement) => {
     const parentG = textElement.parentElement;
     if (parentG) {
