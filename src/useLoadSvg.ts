@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-
+import loadWoff2 from "./wasm/woff2.loader";
+import loadHbSubset from "./wasm/hb-subset.loader";
 import {
   exportToSvg,
   restoreElements,
@@ -65,24 +66,25 @@ export const useLoadSvg = () => {
       };
       const svgList = await Promise.all(
         dataList.map(async (data) => {
-          const elements = getNonDeletedElements(data.elements);
-          const svg = await exportToSvg({
-            elements,
-            files: data.files,
-            appState: data.appState,
-            exportPadding: 30,
-          });
+          try {
+            const elements = getNonDeletedElements(data.elements);
+            const svg = await exportToSvg({
+              elements,
+              files: data.files,
+              appState: data.appState,
+              exportPadding: 30,
+            });
 
-          // This is a patch up function to apply new fonts that are not part of Excalidraw package
-          // Remove this function once Excalidraw package is updated (v0.17.6 as of now)
-          applyNewFontsToSvg(svg, elements);
+            console.log('SVG export successful, starting to apply new fonts');
+            await applyNewFontsToSvg(svg, elements);
 
-          const result = animateSvg(svg, elements, options);
-          console.log(svg);
-          if (inSequence) {
-            options.startMs = result.finishedMs;
+            const result = animateSvg(svg, elements, options);
+            console.log("SVG processing completed");
+            return { svg, finishedMs: result.finishedMs };
+          } catch (error) {
+            console.error("Error processing SVG:", error);
+            throw error;
           }
-          return { svg, finishedMs: result.finishedMs };
         })
       );
       setLoadedSvgList(svgList);
@@ -138,91 +140,218 @@ export const FONT_FAMILY = {
   Virgil: 1,
   Helvetica: 2,
   Cascadia: 3,
-  ChineseFont: 4, // 添加这一行
+  LocalFont: 4,
   Excalifont: 5,
   Nunito: 6,
-  "Lilita One": 7,
-  "Comic Shanns": 8,
+  "LilitaOne": 7,
+  "ComicShanns": 8,
   "Liberation Sans": 9,
 } as const;
 
-/**
- * Recursively apply new fonts to all text elements in the given SVG.
- * `exportToSvg()` is not compatible with new fonts due to a discrepancy between package and release excalidraw.
- * This function patches up the fonts resulting in a default font family.
- *
- * issue link: https://github.com/dai-shi/excalidraw-animate/issues/55
- *  */
-function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
-  const textElements: ExcalidrawTextElement[] = elements.filter(
-    (element): element is ExcalidrawTextElement =>
-      element.type === "text" && !!element.fontFamily
-  ) as ExcalidrawTextElement[];
+async function applyNewFontsToSvg(svg: SVGSVGElement, elements: ExcalidrawElement[]) {
+  console.log('Starting to apply new fonts to SVG');
+  const textElements = elements.filter(
+    (element): element is ExcalidrawTextElement => element.type === "text"
+  );
 
-  /** index to keep track of block of text elements */
-  let currentTextElementIndex = 0;
+  const usedFonts = new Map<string, Set<string>>();
 
-  // Since text element is represented in a group in given svg
-  // apply font family based on the group that contains the text elements
-  svg.querySelectorAll("g").forEach((svgGroup) => {
-    // It indicates the group is not for text - thus skip it
-    if (svgGroup.hasAttribute("stroke-linecap")) return;
+  textElements.forEach((element) => {
+    const fontName = Object.entries(FONT_FAMILY).find(
+      ([, value]) => value === element.fontFamily
+    )?.[0] || DEFAULT_FONT;
 
-    const fontFamily = textElements[currentTextElementIndex]?.fontFamily;
-    svgGroup.querySelectorAll("text").forEach((svgText) => {
-      convertFontFamily(svgText, fontFamily);
+    if (!usedFonts.has(fontName)) {
+      usedFonts.set(fontName, new Set());
+    }
+    element.text.split('').forEach(char => {
+      usedFonts.get(fontName)!.add(char);
     });
-
-    currentTextElementIndex += 1;
   });
+
+  console.log('Used fonts:', Array.from(usedFonts.keys()));
+
+  await Promise.all(Array.from(usedFonts.entries()).map(async ([fontName, characters]) => {
+    console.log(`Processing font: ${fontName}, number of characters: ${characters.size}`);
+    const fontUrl = new URL(`/${fontName}.woff2`, window.location.origin).href;
+    try {
+      await embedFontInSvg(svg, fontUrl, fontName, characters);
+    } catch (error) {
+      console.error(`Error embedding font ${fontName}:`, error);
+      // Continue processing the next font
+    }
+  }));
+
+  svg.querySelectorAll("text").forEach((svgText, index) => {
+    if (index < textElements.length) {
+      const fontFamily = textElements[index].fontFamily;
+      convertFontFamily(svgText, fontFamily);
+      console.log(`Applied font to text element ${index}: ${svgText.getAttribute('font-family')}`);
+    }
+  });
+
+  console.log('New fonts application completed');
 }
 
 function convertFontFamily(
   textElement: SVGTextElement,
   fontFamilyNumber: number | undefined
 ) {
-  switch (fontFamilyNumber) {
-    case FONT_FAMILY.Virgil:
-      textElement.setAttribute("font-family", `Virgil, ${DEFAULT_FONT}`);
-      break;
+  const fontName = Object.entries(FONT_FAMILY).find(
+    ([, value]) => value === fontFamilyNumber
+  )?.[0] || DEFAULT_FONT;
 
-    case FONT_FAMILY.Helvetica:
-      textElement.setAttribute("font-family", `Helvetica, ${DEFAULT_FONT}`);
-      break;
+  textElement.setAttribute("font-family", `${fontName}, ${DEFAULT_FONT}`);
+}
 
-    case FONT_FAMILY.Cascadia:
-      textElement.setAttribute("font-family", `Cascadia, ${DEFAULT_FONT}`);
-      break;
+async function embedFontInSvg(svg: SVGSVGElement, fontUrl: string, fontFamily: string, usedCharacters: Set<string>) {
+  try {
+    console.log(`Starting to embed font: ${fontFamily}`);
+    console.log(`Used characters: ${Array.from(usedCharacters).join('')}`);
 
-    case FONT_FAMILY.Excalifont:
-      textElement.setAttribute("font-family", `Excalifont, ${DEFAULT_FONT}`);
-      break;
+    const response = await fetch(fontUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    console.log(`Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`);
 
-    case FONT_FAMILY.Nunito:
-      textElement.setAttribute("font-family", `Nunito, ${DEFAULT_FONT}`);
-      break;
+    const { compress, decompress } = await loadWoff2();
+    console.log("WOFF2 module loaded successfully");
+    const { subset } = await loadHbSubset();
+    console.log("HB-subset module loaded successfully");
 
-    case FONT_FAMILY["Lilita One"]:
-      textElement.setAttribute("font-family", `Lilita One, ${DEFAULT_FONT}`);
-      break;
+    let decompressedBinary;
+    try {
+      decompressedBinary = decompress(arrayBuffer);
+      console.log(`Font size after decompression: ${decompressedBinary.byteLength} bytes`);
+    } catch (error) {
+      console.error("Font decompression failed:", error);
+      throw error;
+    }
 
-    case FONT_FAMILY["Comic Shanns"]:
-      textElement.setAttribute("font-family", `Comic Shanns, ${DEFAULT_FONT}`);
-      break;
+    if (decompressedBinary.byteLength === 0) {
+      throw new Error("Decompressed font data is empty");
+    }
 
-    case FONT_FAMILY["Liberation Sans"]:
-      textElement.setAttribute(
-        "font-family",
-        `Liberation Sans, ${DEFAULT_FONT}`
-      );
-      break;
+    const charCodes = Array.from(usedCharacters).map(char => char.charCodeAt(0));
+    
+    // Add basic Latin character set
+    for (let i = 0x0020; i <= 0x007F; i++) {
+      charCodes.push(i);
+    }
 
-    case FONT_FAMILY.ChineseFont:
-      textElement.setAttribute("font-family", `ChineseFont, ${DEFAULT_FONT}`);
-      break;
+    console.log(`Creating font subset, number of characters: ${charCodes.length}`);
+    let fontSubset;
+    try {
+      fontSubset = subset(decompressedBinary, new Set(charCodes));
+      console.log(`Font subset creation completed, size: ${fontSubset.byteLength} bytes`);
+    } catch (error) {
+      console.error("Failed to create font subset:", error);
+      // If subset creation fails, use the full font file
+      fontSubset = decompressedBinary;
+      console.log("Using full font file");
+    }
 
-    default:
-      textElement.setAttribute("font-family", DEFAULT_FONT);
-      break;
+    let compressedBinary;
+    try {
+      compressedBinary = compress(fontSubset);
+      console.log(`Font subset size after compression: ${compressedBinary.byteLength} bytes`);
+    } catch (error) {
+      console.error("Font compression failed:", error);
+      throw error;
+    }
+
+    if (compressedBinary.byteLength === 0) {
+      throw new Error("Compressed font data is empty");
+    }
+
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(compressedBinary)));
+    console.log(`Base64 encoded font size: ${base64.length} characters`);
+
+    const fontBase64 = `data:font/woff2;base64,${base64}`;
+
+    const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    style.textContent = `
+      @font-face {
+        font-family: "${fontFamily}";
+        src: url("${fontBase64}") format("woff2");
+      }
+    `;
+    svg.insertBefore(style, svg.firstChild);
+    console.log(`Font ${fontFamily} successfully embedded in SVG`);
+  } catch (error) {
+    console.error(`Error embedding font ${fontFamily}:`, error);
+    // Add a fallback plan
+    const fallbackStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    fallbackStyle.textContent = `
+      @font-face {
+        font-family: "${fontFamily}";
+        src: local("${fontFamily}"), local("${DEFAULT_FONT}");
+      }
+    `;
+    svg.insertBefore(fallbackStyle, svg.firstChild);
+    console.log(`Fallback plan added for font ${fontFamily}`);
   }
+}
+
+async function exportToSvgWithFonts(
+  data: {
+    elements: readonly ExcalidrawElement[];
+    appState: Parameters<typeof exportToSvg>[0]["appState"];
+    files: BinaryFiles;
+  }
+) {
+  console.log("Starting exportToSvgWithFonts");
+  const elements = getNonDeletedElements(data.elements);
+  const svg = await exportToSvg({
+    elements,
+    files: data.files,
+    appState: data.appState,
+    exportPadding: 30,
+  });
+
+  console.log("SVG exported, applying new fonts");
+  await applyNewFontsToSvg(svg, elements);
+
+  // Remove online font references
+  const defsElement = svg.querySelector("defs");
+  if (defsElement) {
+    const styleFonts = defsElement.querySelector(".style-fonts");
+    if (styleFonts) {
+      defsElement.removeChild(styleFonts);
+    }
+  }
+
+  // Check the final SVG
+  console.log("Final SVG structure:");
+  console.log(svg.outerHTML);
+
+  return svg;
+}
+
+async function exportSvg(data: {
+  elements: readonly ExcalidrawElement[];
+  appState: Parameters<typeof exportToSvg>[0]["appState"];
+  files: BinaryFiles;
+}) {
+  console.log("Starting SVG export");
+  const svg = await exportToSvgWithFonts(data);
+  console.log("SVG exported with fonts, converting to string");
+  const svgString = new XMLSerializer().serializeToString(svg);
+  console.log("SVG string created, length:", svgString.length);
+  
+  // Check font settings in the SVG string
+  const fontFamilyMatches = svgString.match(/font-family="[^"]*"/g);
+  console.log("Font family occurrences in SVG:", fontFamilyMatches);
+
+  const blob = new Blob([svgString], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "excalidraw-export.svg";
+  a.click();
+  URL.revokeObjectURL(url);
+  console.log("SVG export completed");
 }

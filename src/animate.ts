@@ -6,6 +6,8 @@ import type {
 
 import { getFreeDrawSvgPath } from "@excalidraw/excalidraw";
 
+import { FONT_FAMILY } from "./useLoadSvg"; 
+
 type AnimateOptions = {
   startMs?: number;
   pointerImg?: string;
@@ -270,6 +272,11 @@ const animateText = (
   durationMs: number,
   options: AnimateOptions
 ) => {
+
+  const originalFontFamily = ele.getAttribute("font-family");
+  const originalFontFamilyNumber = ele.getAttribute("font-family-number");
+
+
   const anchor = ele.getAttribute("text-anchor") || "start";
   if (anchor !== "start") {
     // Not sure how to support it, fallback with opacity
@@ -315,8 +322,21 @@ const animateText = (
     options
   );
 
-  // 添加此代码以确保正确应用新字体
-  ele.setAttribute("font-family", "ChineseFont, sans-serif");
+
+  if (originalFontFamily) {
+    ele.setAttribute("font-family", originalFontFamily);
+  }
+  if (originalFontFamilyNumber) {
+    ele.setAttribute("font-family-number", originalFontFamilyNumber);
+  }
+
+  const textElement = ele.querySelector("text");
+  if (textElement) {
+    textElement.setAttribute("font-family", originalFontFamily || "");
+    console.log("Inner text element font-family set to:", originalFontFamily);
+  }
+
+  console.log("Text element font-family after:", ele.getAttribute("font-family"));
 };
 
 const animateFromToPath = (
@@ -486,10 +506,21 @@ const patchSvgText = (
 ) => {
   const childNodes = ele.childNodes as NodeListOf<SVGElement>;
   const len = childNodes.length;
-  childNodes.forEach((child) => {
-    child.setAttribute("font-family", "ChineseFont, sans-serif");
+  childNodes.forEach((child, index) => {
+
+    const originalFontFamily = child.getAttribute("font-family");
+    const originalFontFamilyNumber = child.getAttribute("font-family-number");
+
     animateText(svg, width, child, currentMs, durationMs / len, options);
     currentMs += durationMs / len;
+
+
+    if (originalFontFamily) {
+      child.setAttribute("font-family", originalFontFamily);
+    }
+    if (originalFontFamilyNumber) {
+      child.setAttribute("font-family-number", originalFontFamilyNumber);
+    }
   });
 };
 
@@ -664,7 +695,30 @@ export const animateSvg = (
   const groupElement2Element = new Map(
     groupNodes.map((ele, index) => [ele, elements[index]])
   );
-  sortSvgNodes(groupNodes, elements).forEach((ele) => {
+
+
+  groupNodes.forEach((ele, index) => {
+    const element = elements[index];
+    if (element.type === "text") {
+      const fontFamilyNumber = element.fontFamily;
+      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
+      
+      const fontName = Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === fontFamilyNumber
+      )?.[0];
+      
+      if (fontName) {
+        ele.setAttribute("font-family", `${fontName}, sans-serif`);
+        console.log(`Set font-family for text to: ${fontName}, sans-serif`);
+      } else {
+        ele.setAttribute("font-family", "sans-serif");
+        console.log("Set font-family to default: sans-serif");
+      }
+    }
+  });
+
+
+  sortSvgNodes(groupNodes, elements).forEach((ele, index, array) => {
     const element = groupElement2Element.get(
       ele
     ) as NonDeletedExcalidrawElement;
@@ -705,10 +759,40 @@ export const animateSvg = (
         finished.set(ele, true);
       }
     }
+
+  });
+
+
+  groupNodes.forEach((ele, index) => {
+    const element = elements[index];
     if (element.type === "text") {
-      ele.setAttribute("font-family", "ChineseFont, sans-serif");
+      const fontFamilyNumber = element.fontFamily;
+      ele.setAttribute("font-family-number", fontFamilyNumber?.toString() || "");
+      
+      const fontName = Object.entries(FONT_FAMILY).find(
+        ([, value]) => value === fontFamilyNumber
+      )?.[0];
+      
+      if (fontName) {
+        ele.setAttribute("font-family", `${fontName}, sans-serif`);
+        console.log(`Re-applied font-family for text to: ${fontName}, sans-serif`);
+      } else {
+        ele.setAttribute("font-family", "sans-serif");
+        console.log("Re-applied font-family to default: sans-serif");
+      }
     }
   });
+
+
+  svg.querySelectorAll("g[font-family-number] > text").forEach((textElement) => {
+    const parentG = textElement.parentElement;
+    if (parentG) {
+      const fontFamily = parentG.getAttribute("font-family");
+      textElement.setAttribute("font-family", fontFamily || "");
+      console.log("Final check: Set inner text font-family to:", fontFamily);
+    }
+  });
+
   finishedMs = current + 1000; // 1 sec margin
   return { finishedMs };
 };
