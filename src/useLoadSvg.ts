@@ -180,7 +180,10 @@ async function applyNewFontsToSvg(
       console.log(
         `Processing font: ${fontName}, number of characters: ${characters.size}`
       );
-      const fontUrl = new URL(`${process.env.PUBLIC_URL}/${fontName}.woff2`, window.location.origin).href;
+      const fontUrl = new URL(
+        `${process.env.PUBLIC_URL}/${fontName}.woff2`,
+        window.location.origin
+      ).href;
       try {
         await embedFontInSvg(svg, fontUrl, fontName, characters);
       } catch (error) {
@@ -233,7 +236,9 @@ async function embedFontInSvg(
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    console.log(`Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`);
+    console.log(
+      `Successfully retrieved font file: ${fontFamily}, size: ${arrayBuffer.byteLength} bytes`
+    );
 
     const { compress, decompress } = await loadWoff2();
     console.log("WOFF2 module loaded successfully");
