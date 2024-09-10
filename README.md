@@ -1,3 +1,23 @@
+# excalidraw-animate(modified) / excalidraw-animate 修改版
+
+# 项目介绍
+
+本项目基于
+[dai-shi/excalidraw-animate](https://github.com/dai-shi/excalidraw-animate) 修改，修复/增加了以下特性：
+
+- 修复了原项目导出svg不支持字体的问题
+- 启用了4号字体（即obsidian-excalidraw的自定义字体选项）
+  - 现在您可以通过本项目把obsidian-excalidraw导出的文件转换为动态svg，完美支持各种字体
+- 现在svg导出会嵌入使用字体的子集（即只包含用到在字形），确保离线状态下字体正常渲染的前提下，缩减文件体积，
+  - 注：此功能在2.4.1版本被引入obsidian-excalidraw
+    - Improved SVG export to include only the necessary glyphs for .woff2 fonts, minimizing file sizes. Note that this feature is currently supported only for .woff2 files; other font formats like .ttf and .otf will be fully embedded, leading to larger SVG files.
+
+## 后续开发目标
+
+- [ ] 单个元素绘制时，镜头放大，绘制完成后再给全景（以解决目前大画布看不清的问题）
+
+---
+
 # excalidraw-animate
 
 <table><tr><td>
